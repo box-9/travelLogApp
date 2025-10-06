@@ -1,0 +1,172 @@
+/* 基本的なリセット */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* アプリ全体のレイアウト */
+.container {
+  display: flex;
+  height: 100vh;
+  text-align: left;
+}
+
+.sidebar {
+  width: 300px;
+  padding: 1rem;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+}
+
+.main-content {
+  flex-grow: 1;
+  position: relative; /* Mapboxが正しく表示されるために必要 */
+}
+
+.map-container {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 旅行リスト */
+.trip-list h2, .add-form h3 {
+  margin-top: 0;
+}
+
+.trip-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.trip-list li {
+  padding: 0.75rem;
+  cursor: pointer;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  border: 1px solid #eee;
+}
+
+.trip-list li:hover {
+  background-color: #f0f0f0;
+}
+
+.trip-list li.selected {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+/* フォーム */
+.add-form {
+  margin-top: 1.5rem;
+}
+
+.add-form input,
+.add-form textarea,
+.add-form button {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  box-sizing: border-box; /* paddingを含めてwidth 100%にする */
+}
+
+.add-form button {
+  cursor: pointer;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 1.5rem 0;
+}
+
+/* 旅行リストのli要素をflexboxにする */
+.trip-list li {
+  display: flex;
+  justify-content: space-between; /* 両端に寄せる */
+  align-items: center; /* 上下中央揃え */
+  padding: 0.75rem;
+  cursor: pointer;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  border: 1px solid #eee;
+}
+
+.trip-list .trip-name {
+  flex-grow: 1;
+}
+
+.delete-btn {
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 1rem;
+}
+
+.delete-btn:hover {
+  background-color: #cc0000;
+}
+
+.popup-buttons {
+  display: flex;
+  gap: 8px; /* ボタン間のスペース */
+  margin-top: 8px;
+}
+.popup-btn {
+  border: 1px solid #ccc;
+  background-color: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.popup-btn:hover {
+  background-color: #e0e0e0;
+}
+.popup-delete-btn {
+  border-color: #ff4d4d;
+  background-color: #fff0f0;
+  color: #ff4d4d;
+}
+.popup-delete-btn:hover {
+  background-color: #ff4d4d;
+  color: white;
+}
+
+.photo-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.photo-container {
+  position: relative;
+}
+.photo-delete-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 24px;
+  text-align: center;
+  padding: 0;
+}
+.photo-delete-btn:hover {
+  background-color: rgba(255, 0, 0, 0.8);
+}
