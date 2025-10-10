@@ -1,25 +1,13 @@
 import { useEffect, useState } from 'react';
 import ReactModal from 'react-modal';
-
-interface Photo {
-    id: number;
-    file_path: string;
-}
-
-interface Location {
-    id: number;
-    title: string;
-    description: string | null;
-    latitude: number;
-    longitude: number;
-    photos: Photo[];
-}
+import type { Location } from '../types';
+import LocationEditMap from './LocationEditMap';
 
 interface TripModalProps {
     isOpen: boolean;
     onRequestClose: () => void;
     location: Location | null;
-    onLocationUpdate: (locationId: number, updateData: { title: string, description: string }) => void;
+    onLocationUpdate: (locationId: number, updateData: Partial<Location>) => void;
     onPhotoDelete: (photoId: number) => void;
 }
 
@@ -27,15 +15,21 @@ const API_URL = 'http://127.0.0.1:8000';
 
 const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhotoDelete }: TripModalProps) => {
     const [isEditing, setIsEditing] = useState(false);
+    const [isPositionEditing, setIsPositionEditing] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [position, setPosition] = useState({ lat: 0, lng: 0 });
 
     useEffect(() => {
         if (location) {
             setTitle(location.title);
             setDescription(location.description || '');
         }
-    }, [location]);
+        if (!isOpen) {
+            setIsEditing(false);
+            setIsPositionEditing(false);
+        }
+    }, [location, isOpen]);
     
     if (!location) {
         return null;
@@ -44,7 +38,11 @@ const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhoto
     const handleSave = () => {
         onLocationUpdate(location.id, { title, description });
         setIsEditing(false);
-        onRequestClose();
+    }
+
+    const handlePositionSave = () => {
+        onLocationUpdate(location.id, { latitude: position.lat, longitude: position.lng });
+        setIsPositionEditing(false);
     }
 
     const handleCancel = () => {
@@ -67,6 +65,20 @@ const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhoto
                     <div style={{ marginTop: '1rem' }}>
                         <button onClick={handleSave}>保存</button>
                         <button onClick={handleCancel} style={{ marginLeft: '0.5ref' }}>キャンセル</button>
+                    </div>
+                </div>
+            ) : isPositionEditing ? (
+                 <div>
+                    <h3>位置を編集</h3>
+                    <p>地図上のピンをドラッグして位置を調整してください。</p>
+                    <LocationEditMap 
+                        initialLat={location.latitude} 
+                        initialLng={location.longitude}
+                        onPositionChange={(lng, lat) => setPosition({ lng, lat })}
+                    />
+                    <div style={{ marginTop: '1rem' }}>
+                        <button onClick={handlePositionSave}>この位置に保存</button>
+                        <button onClick={() => setIsPositionEditing(false)} style={{ marginLeft: '0.5rem' }}>キャンセル</button>
                     </div>
                 </div>
             ) : (
@@ -98,7 +110,8 @@ const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhoto
                         {(!location.photos || location.photos.length === 0) && <p>この場所には写真がありません</p>}
                     </div>
                     <div style={{ marginTop: '1.5rem' }}>
-                        <button onClick={() => setIsEditing(true)}>編集</button>
+                        <button onClick={() => setIsEditing(true)}>テキストを編集</button>
+                        <button onClick={() => setIsPositionEditing(true)} style={{ marginLeft: '0.5rem' }}>位置を編集</button>
                         <button onClick={onRequestClose} style={{ marginLeft: '0.5rem' }}>閉じる</button>
                     </div>
                 </div>

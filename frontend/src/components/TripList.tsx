@@ -1,9 +1,5 @@
 import { useState } from "react";
-
-interface Trip {
-    id: number;
-    name: string;
-}
+import type { Trip } from "../types";
 
 interface TripListProps {
     trips: Trip[]

@@ -50,3 +50,5 @@ class Trip(TripCreate):
 class LocationUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None

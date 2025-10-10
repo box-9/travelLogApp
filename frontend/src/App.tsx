@@ -5,192 +5,130 @@ import TripModal from './components/TripModal';
 import TripList from './components/TripList';
 import AddTripForm from './components/AddTripForm';
 import AddLocationForm from './components/AddLocationForm';
-
-interface Photo {
-    id: number;
-    file_path: string;
-}
-
-interface Location {
-  id: number;
-  title: string;
-  description: string | null;
-  latitude: number;
-  longitude: number;
-  photos: Photo[];
-}
-interface Trip {
-  id: number;
-  name: string;
-  locations: Location[];
-}
+import { Toaster, toast } from 'react-hot-toast';
+import type { Location, Trip } from './types';
+import * as api from './api';
 
 function App() {
-  console.log("App component is rendering!");
-
   const [trips, setTrips] = useState<Trip[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const API_URL = 'http://127.0.0.1:8000';
+  const [isTripsLoading, setIsTripsLoading] = useState(true);
+  const [isLocationsLoading, setIsLocationsLoading] = useState(false);
 
-  const fetchLocations = (tripId: number) => {
-    console.log(`Fetching locations for tripId: ${tripId}`);
-    fetch(`${API_URL}/trips/${tripId}/locations/`)
-      .then(response => response.json())
-      .then((data: Location[]) => {
-        console.log("Fetched locations data:", data);
-        setLocations(data);
+  const loadTrips = () => {
+    setIsTripsLoading(true);
+    api.fetchTrips()
+      .then(data => {
+        setTrips(data);
+        setIsTripsLoading(false);
       })
-      .catch(error => console.error(`Error fetching locations for trip ${tripId}:`, error));
+      .catch(error => {
+        console.error("Error fetching trips:", error);
+        setIsTripsLoading(false);
+      });
   };
 
-  const fetchTrips = () => {
-    console.log("Fetching trips...");
-    fetch(`${API_URL}/trips/`)
-      .then(response => response.json())
-      .then((data: Trip[]) => {
-        console.log("Fetched trips data:", data);
-        setTrips(data);
+  const loadLocations = (tripId: number) => {
+    setIsLocationsLoading(true);
+    api.fetchLocations(tripId)
+      .then(data => {
+        setLocations(data);
+        setIsLocationsLoading(false);
       })
-      .catch(error => console.error("Error fetching trips:", error));
+      .catch(error => {
+        console.error(`Error fetching locations for trip ${tripId}:`, error);
+        setIsLocationsLoading(false);
+      });
   };
 
   useEffect(() => {
-    fetchTrips();
+    loadTrips();
   }, []);
 
   useEffect(() => {
     if (selectedTripId !== null) {
-      fetchLocations(selectedTripId);
+      loadLocations(selectedTripId);
     } else {
       setLocations([]);
     }
   }, [selectedTripId]);
 
   const handleAddTrip = (name: string) => {
-    console.log("Adding trip:", name);
-    fetch(`${API_URL}/trips/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
-    .then(() => fetchTrips());
+    toast.promise(
+      api.addTrip(name), {
+        loading: '旅行を追加中...',
+        success: <b>追加しました！</b>,
+        error: <b>追加に失敗しました</b>,
+      }
+    ).then(() => loadTrips());
   };
 
   const handleAddLocation = (formData: { title: string, description: string, file: File }) => {
     if (selectedTripId === null) return;
-
-    const locationData = {
-      title: formData.title, 
-      description: formData.description,
-      latitude: 0,
-      longitude: 0,
-    };
-
-    fetch(`${API_URL}/trips/${selectedTripId}/locations/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(locationData) })
-    .then(response => response.json())
-    .then((newLocation: Location) => {
-      const photoFormData = new FormData();
-      photoFormData.append("file", formData.file);
-
-      return fetch(`${API_URL}/locations/${newLocation.id}/photos/`, {
-        method: `POST`,
-        body: photoFormData,
-      });
-    })
-    .then(response => {
-      if (response.ok) {
-        fetchLocations(selectedTripId);
-      } else { 
-        console.error("Failed to add location"); 
-      }
-    })
-    .catch(error => console.error("Error adding location:", error));
+    toast.promise(api.addLocation(selectedTripId, formData), {
+      loading: '旅行を追加中...',
+        success: <b>追加しました！</b>,
+        error: <b>追加に失敗しました</b>,
+    }).then(() => loadLocations(selectedTripId));
   };
 
   const handleUpdateTrip = (tripId: number, newName: string) => {
-    fetch(`${API_URL}/trips/${tripId}`, {
-      method: `PUT`,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName }),
-    })
-    .then(response => {
-      if (response.ok) {
-        fetchTrips();
-      } else {
-        console.error("Failed to update trip");
-      }
-    })
-    .catch(error => console.error("Error updating trip:", error));
+    toast.promise(api.updateTrip(tripId, newName), {
+      loading: '保存中...',
+      success: <b>保存しました！</b>,
+      error: <b>保存に失敗しました</b>,
+    }).then(() => loadTrips());
   };
 
-  const handleUpdateLocation = (locationId: number, updateData: { title: string, description: string}) => {
+  const handleUpdateLocation = (locationId: number, updateData: Partial<Location>) => {
     if (!selectedTripId) return;
-
-    fetch(`${API_URL}/locations/${locationId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updateData),
-    })
-    .then(response => {
-      if (response.ok) {
-        fetchLocations(selectedTripId);
-      } else {
-        console.error("Failed to update location");
-      }
-    })
-    .catch(error => console.error("Error updating location:", error));
+    toast.promise(api.updateLocation(locationId, updateData), {
+      loading: '保存中...',
+      success: <b>保存しました！</b>,
+      error: <b>保存に失敗しました</b>,
+    }).then(() => loadLocations(selectedTripId));
   };
 
   const handleDeleteTrip = (tripId: number, tripName: string) => {
     if (window.confirm(`本当に「${tripName}」を削除しますか？`)) {
-      fetch(`${API_URL}/trips/${tripId}`, {
-        method: `DELETE`,
-      })
-      .then(response => {
-        if (response.ok) {
-          fetchTrips();
-          if (selectedTripId == tripId) {
-            setSelectedTripId(null);
-          }
-        } else {
-          console.error("Failed to delete trip");
+      toast.promise(api.deleteTrip(tripId), {
+        loading: '削除中...',
+        success: <b>削除しました!</b>,
+        error: <b>削除に失敗しました</b>,
+      }).then(() => {
+        if (selectedTripId === tripId) {
+          setSelectedTripId(null);
         }
-      })
-      .catch(error => console.error("Error deleting trip", error));
+        loadTrips();
+      });
     }
   };
 
   const handleDeleteLocation = (locationId: number, locationTitle: string) => {
+    if (!selectedTripId) return;
     if (window.confirm(`本当に「${locationTitle}」を削除しますか？`)) {
-      fetch(`${API_URL}/locations/${locationId}`, {
-        method: `DELETE`,
-      })
-      .then(response => {
-        if (response.ok && selectedTripId) {
-          fetchLocations(selectedTripId);
-        } else {
-          console.error("Failed to delete location");
-        }
-      })
-      .catch(error => console.error("Error deleteing location", error));
+      toast.promise(api.deleteLocation(locationId), {
+        loading: '削除中...',
+        success: <b>削除しました!</b>,
+        error: <b>削除に失敗しました</b>,
+      }).then(() => loadLocations(selectedTripId));
     }
   };
 
   const handleDeletePhoto = (photoId: number) => {
     if (!selectedTripId) return;
-
     if (window.confirm("本当にこの写真を削除しますか？")) {
-      fetch(`${API_URL}/photos/${photoId}`, {
-        method: 'DELETE',
-      })
-      .then(response => {
-        if (response.ok) {
-          fetchLocations(selectedTripId);
-          handleCloseModal();
-        } else {
-          console.error("Failed to delete photo");
-        }
-      })
-      .catch(error => console.error("Error deleting photo:", error));
+      toast.promise(api.deletePhoto(photoId), {
+        loading: '削除中...',
+        success: <b>削除しました！</b>,
+        error: <b>削除に失敗しました。</b>,
+      }).then(() => {
+        loadLocations(selectedTripId!);
+        handleCloseModal();
+      });
     }
   };
 
@@ -199,16 +137,50 @@ function App() {
 
   return (
     <div className="container">
-      <TripModal isOpen={isModalOpen} onRequestClose={handleCloseModal} location={selectedLocation} onLocationUpdate={handleUpdateLocation} onPhotoDelete={handleDeletePhoto}/>
+      <Toaster position='top-center' reverseOrder={false} />
+      <TripModal isOpen={isModalOpen} onRequestClose={handleCloseModal} location={selectedLocation} onLocationUpdate={handleUpdateLocation} onPhotoDelete={handleDeletePhoto} />
       <aside className="sidebar">
-        <TripList trips={trips} selectedTripId={selectedTripId} onTripSelect={setSelectedTripId} onTripUpdate={handleUpdateTrip} onTripDelete={handleDeleteTrip} />
+        {isTripsLoading ? (
+          <p>旅行リストを読み込み中...</p>
+        ) : (
+          <>
+            {trips.length > 0 ? (
+              <TripList trips={trips} selectedTripId={selectedTripId} onTripSelect={setSelectedTripId} onTripUpdate={handleUpdateTrip} onTripDelete={handleDeleteTrip} />
+            ) : (
+              <div className='empty-state'>
+                <p>旅行がありません</p>
+                <p>最初の旅行を追加しましょう！</p>
+              </div>
+            )}
+          </>
+          )}
         <hr />
         <AddTripForm onTripAdd={handleAddTrip} />
-        <hr /> 
+        <hr />
         {selectedTripId && <AddLocationForm onLocationAdd={handleAddLocation} />}
       </aside>
       <main className="main-content">
-        <Map locations={locations} onPinClick={handleOpenModal} onPinDelete={handleDeleteLocation} />
+        {isLocationsLoading ? (
+          <p>場所を読み込み中...</p>
+        ) : (
+          <>
+            <Map locations={locations} onPinClick={handleOpenModal} onPinDelete={handleDeleteLocation} />
+
+            {!selectedTripId && (
+              <div className='empty-state-overlay'>
+                <h2>旅行を選択してください</h2>
+                <p>サイドバーから旅行を選択すると、地図上にピンが表示されます</p>
+              </div>
+            )}
+            {selectedTripId && locations.length === 0 && (
+                <div className='empty-state-overlay'>
+                  <p>この旅行にはまだ場所が登録されていません。</p>
+                  <p>写真を追加して、最初の記録を作りましょう！</p>
+                </div>
+              )
+            }
+          </>
+        )}
       </main>
     </div>
   );

@@ -170,3 +170,15 @@ hr {
 .photo-delete-btn:hover {
   background-color: rgba(255, 0, 0, 0.8);
 }
+
+.empty-state-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(255, 255, 255, 0.8);
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  z-index: 10;
+}
