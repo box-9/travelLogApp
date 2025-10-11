@@ -101,6 +101,15 @@ function App() {
     }).then(() => loadLocations(selectedTripId));
   };
 
+  const handleAddPhotoToLocation = (locationId: number, file: File) => {
+    if (!selectedTripId) return;
+    toast.promise(api.addPhotoToLocation(locationId, file), {
+      loading: '写真を追加中...',
+      success: <b>写真を追加しました！</b>,
+      error: <b>追加に失敗しました</b>,
+    }).then(() => loadLocations(selectedTripId));
+  };
+
   const handlePositionReset = (photoId: number) => {
     if (!selectedTripId) return;
     toast.promise(api.resetLocationFromPhoto(photoId), {
@@ -159,7 +168,7 @@ function App() {
   return (
     <div className="container">
       <Toaster position='top-center' reverseOrder={false} />
-      <TripModal isOpen={isModalOpen} onRequestClose={handleCloseModal} location={selectedLocation} onLocationUpdate={handleUpdateLocation} onPhotoDelete={handleDeletePhoto} onPositionReset={handlePositionReset}/>
+      <TripModal isOpen={isModalOpen} onRequestClose={handleCloseModal} location={selectedLocation} onLocationUpdate={handleUpdateLocation} onPhotoDelete={handleDeletePhoto} onPositionReset={handlePositionReset} onPhotoAdd={handleAddPhotoToLocation} />
       <aside className="sidebar">
         {isTripsLoading ? (
           <p>旅行リストを読み込み中...</p>
@@ -181,19 +190,21 @@ function App() {
         {selectedTripId && <AddLocationForm onLocationAdd={handleAddLocation} />}
       </aside>
       <main className="main-content">
+        <Map locations={locations} onPinClick={handleOpenModal} onPinDelete={handleDeleteLocation} />
+        
         {isLocationsLoading ? (
-          <p>場所を読み込み中...</p>
+          <div className='loading-overlay'>
+            <p>場所を読み込み中...</p>
+          </div>
         ) : (
           <>
-            <Map locations={locations} onPinClick={handleOpenModal} onPinDelete={handleDeleteLocation} />
-
-            {!selectedTripId && (
+            {!isLocationsLoading && !selectedTripId && (
               <div className='empty-state-overlay'>
                 <h2>旅行を選択してください</h2>
                 <p>サイドバーから旅行を選択すると、地図上にピンが表示されます</p>
               </div>
             )}
-            {selectedTripId && locations.length === 0 && (
+            {!isLocationsLoading && selectedTripId && locations.length === 0 && (
                 <div className='empty-state-overlay'>
                   <p>この旅行にはまだ場所が登録されていません。</p>
                   <p>写真を追加して、最初の記録を作りましょう！</p>

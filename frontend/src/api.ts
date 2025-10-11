@@ -81,6 +81,18 @@ export const updateLocation = async (locationId: number, updateData: Partial<Loc
   return response.json();
 };
 
+export const addPhotoToLocation = async (locationId: number, file: File): Promise<Response> => {
+    const photodataFormData = new FormData();
+    photodataFormData.append("file", file);
+
+    const response = await fetch(`${API_URL}/locations/${locationId}/photos/`, {
+        method: 'POST',
+        body: photodataFormData,
+    });
+    if (!response.ok) throw new Error('Failed to add photo to location');
+    return response;
+};
+
 export const deleteLocation = async (locationId: number): Promise<Response> => {
     const response = await fetch(`${API_URL}/locations/${locationId}`, {
         method: 'DELETE',

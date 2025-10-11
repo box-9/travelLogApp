@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactModal from 'react-modal';
 import type { Location } from '../types';
 import LocationEditMap from './LocationEditMap';
@@ -10,16 +10,19 @@ interface TripModalProps {
     onLocationUpdate: (locationId: number, updateData: Partial<Location>) => void;
     onPhotoDelete: (photoId: number) => void;
     onPositionReset: (photoId: number) => void;
+    onPhotoAdd: (locationId: number, file: File) => void;
 }
 
 const API_URL = 'http://127.0.0.1:8000';
 
-const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhotoDelete, onPositionReset }: TripModalProps) => {
+const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhotoDelete, onPositionReset, onPhotoAdd }: TripModalProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isPositionEditing, setIsPositionEditing] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [position, setPosition] = useState({ lat: 0, lng: 0 });
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (location) {
@@ -61,6 +64,13 @@ const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhoto
         }
     }
 
+    const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file && location) {
+            onPhotoAdd(location.id, file);
+        }  
+    };
+
     return (
         <ReactModal
             isOpen={isOpen}
@@ -101,6 +111,18 @@ const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhoto
                     </div>
                     <hr />
                     <h3>写真</h3>
+                    
+                    <input 
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelected}
+                        style={{ display: 'none' }}
+                        accept="image/jpeg, image/png"
+                    />
+                    <button onClick={() => fileInputRef.current?.click()} style={{ marginBottom: '1rem' }}>
+                        写真を追加
+                    </button>
+                    
                     <div className='photo-gallery'>
                         {location.photos && location.photos.map(photo => (
                             <div key={photo.id} className='photo-container'>
