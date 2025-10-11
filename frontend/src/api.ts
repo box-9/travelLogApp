@@ -89,6 +89,14 @@ export const deleteLocation = async (locationId: number): Promise<Response> => {
     return response;
 };
 
+export const resetLocationFromPhoto = async (photoId: number): Promise<Response> => {
+    const response = await fetch(`${API_URL}/photos/${photoId}/reset-location`, {
+        method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to reset location from photo');
+    return response.json();
+}
+
 
 // --- Photo API ---
 

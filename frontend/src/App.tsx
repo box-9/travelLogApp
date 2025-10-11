@@ -56,6 +56,15 @@ function App() {
     }
   }, [selectedTripId]);
 
+  useEffect(() => {
+    if (selectedLocation) {
+      const updatedLocation = locations.find(loc => loc.id === selectedLocation.id);
+      if (updatedLocation) {
+        setSelectedLocation(updatedLocation);
+      }
+    }
+  }, [locations]);
+
   const handleAddTrip = (name: string) => {
     toast.promise(
       api.addTrip(name), {
@@ -91,6 +100,18 @@ function App() {
       error: <b>保存に失敗しました</b>,
     }).then(() => loadLocations(selectedTripId));
   };
+
+  const handlePositionReset = (photoId: number) => {
+    if (!selectedTripId) return;
+    toast.promise(api.resetLocationFromPhoto(photoId), {
+      loading: '読み込み中...',
+      success: <b>位置をリセットしました!</b>,
+      error: <b>リセットに失敗しました</b>,
+    }).then(() => {
+      loadLocations(selectedTripId);
+      handleCloseModal();
+    })
+  }
 
   const handleDeleteTrip = (tripId: number, tripName: string) => {
     if (window.confirm(`本当に「${tripName}」を削除しますか？`)) {
@@ -138,7 +159,7 @@ function App() {
   return (
     <div className="container">
       <Toaster position='top-center' reverseOrder={false} />
-      <TripModal isOpen={isModalOpen} onRequestClose={handleCloseModal} location={selectedLocation} onLocationUpdate={handleUpdateLocation} onPhotoDelete={handleDeletePhoto} />
+      <TripModal isOpen={isModalOpen} onRequestClose={handleCloseModal} location={selectedLocation} onLocationUpdate={handleUpdateLocation} onPhotoDelete={handleDeletePhoto} onPositionReset={handlePositionReset}/>
       <aside className="sidebar">
         {isTripsLoading ? (
           <p>旅行リストを読み込み中...</p>

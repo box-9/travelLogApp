@@ -35,6 +35,7 @@ def get_db():
     finally:
         db.close()
 
+
 @app.post("/trips/", response_model=schemas.Trip)
 def create_trip(trip: schemas.TripCreate, db: Session = Depends(get_db)):
     return crud.create_trip(db=db, trip=trip)
@@ -66,6 +67,14 @@ def delete_trip(trip_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Trip not Found")
     return db_trip
 
+@app.put("/trips/{trip_id}", response_model=schemas.Trip)
+def update_trip(trip_id: int, trip: schemas.TripCreate, db: Session = Depends(get_db)):
+    db_trip = crud.update_trip(db=db, trip_id=trip_id, trip=trip)
+    if db_trip is None:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    return db_trip
+
+
 @app.delete("/locations/{location_id}", response_model=schemas.Location)
 def delete_location(location_id: int, db: Session = Depends(get_db)):
     db_location = crud.delete_location(db=db, location_id=location_id)
@@ -87,13 +96,6 @@ def upload_photo_for_location(location_id: int, file: UploadFile = File(...), db
         raise HTTPException(status_code=404, detail="Location not found")
     return db_photo
 
-@app.put("/trips/{trip_id}", response_model=schemas.Trip)
-def update_trip(trip_id: int, trip: schemas.TripCreate, db: Session = Depends(get_db)):
-    db_trip = crud.update_trip(db=db, trip_id=trip_id, trip=trip)
-    if db_trip is None:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    return db_trip
-
 @app.put("/locations/{location_id}", response_model=schemas.Location)
 def update_location(location_id: int, location: schemas.LocationUpdate, db: Session = Depends(get_db)):
     db_location = crud.update_location(db=db, location_id=location_id, location=location)
@@ -107,3 +109,10 @@ def delete_photo(photo_id: int, db: Session = Depends(get_db)):
     if db_photo is None:
         raise HTTPException(status_code=404, detail="Photo not found")
     return db_photo
+
+@app.post("/photos/{photo_id}/reset-location", response_model=schemas.Location)
+def reset_location_from_photo(photo_id: int, db: Session = Depends(get_db)):
+    updated_location = crud.reset_location_from_photo(db=db, photo_id=photo_id)
+    if updated_location is None:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    return updated_location

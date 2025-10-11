@@ -98,6 +98,25 @@ def create_location_photo(db: Session, location_id: int, file_path: str):
     db.refresh(db_location)
     return db_photo
 
+def reset_location_from_photo(db: Session, photo_id: int):
+    db_photo = db.query(models.Photo).filter(models.Photo.id == photo_id).first()
+    if not db_photo:
+        return None
+    
+    db_location = db_photo.location
+    if not db_location:
+        return None
+    
+    geotag = get_geotag_from_image(db_photo.file_path)
+
+    if geotag:
+        db_location.latitude = geotag["latitude"]
+        db_location.longitude = geotag["longitude"]
+        db.commit()
+        db.refresh(db_location)
+    
+    return db_location
+
 def update_trip(db: Session, trip_id: int, trip: schemas.TripCreate):
     db_trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if db_trip:

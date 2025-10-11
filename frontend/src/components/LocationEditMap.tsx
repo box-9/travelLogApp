@@ -38,6 +38,8 @@ const LocationEditMap = ({ initialLat, initialLng, onPositionChange }: LocationE
 
         return () => {
             map.current?.remove();
+            map.current = null;
+            marker.current = null;
         };
     }, []);
 

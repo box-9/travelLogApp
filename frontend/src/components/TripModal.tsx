@@ -9,11 +9,12 @@ interface TripModalProps {
     location: Location | null;
     onLocationUpdate: (locationId: number, updateData: Partial<Location>) => void;
     onPhotoDelete: (photoId: number) => void;
+    onPositionReset: (photoId: number) => void;
 }
 
 const API_URL = 'http://127.0.0.1:8000';
 
-const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhotoDelete }: TripModalProps) => {
+const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhotoDelete, onPositionReset }: TripModalProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isPositionEditing, setIsPositionEditing] = useState(false);
     const [title, setTitle] = useState('');
@@ -51,6 +52,15 @@ const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhoto
         setIsEditing(false);
     };
 
+    const handlePositionReset = () => {
+        if (location.photos && location.photos.length > 0) {
+            const firstPhotoId = location.photos[0].id;
+            onPositionReset(firstPhotoId);
+        } else {
+            alert("この場所にはジオタグを読み込むための写真がありません");
+        }
+    }
+
     return (
         <ReactModal
             isOpen={isOpen}
@@ -78,6 +88,7 @@ const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhoto
                     />
                     <div style={{ marginTop: '1rem' }}>
                         <button onClick={handlePositionSave}>この位置に保存</button>
+                        <button onClick={handlePositionReset} style={{ marginLeft: '0.5rem' }}>リセット</button>
                         <button onClick={() => setIsPositionEditing(false)} style={{ marginLeft: '0.5rem' }}>キャンセル</button>
                     </div>
                 </div>
