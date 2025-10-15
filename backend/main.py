@@ -8,6 +8,7 @@ import uuid
 
 from . import models, schemas, crud
 from .database import engine, SessionLocal
+from .config import settings
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -15,7 +16,7 @@ origins = [
     "http://localhost:5173",
 ]
 
-UPLOAD_DIR = "static/images"
+UPLOAD_DIR = settings.image_dir
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI()

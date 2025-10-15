@@ -4,10 +4,14 @@ from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 import os
 
+from .config import settings
+
+IMAGEDIR = settings.image_dir
+
 def _delete_photo_file(photo: models.Photo):
     if photo and photo.file_path:
         file_name = os.path.basename(photo.file_path)
-        file_path = os.path.join("static/images/", file_name)
+        file_path = os.path.join(IMAGEDIR, file_name)
         if os.path.exists(file_path):
             os.remove(file_path)
 
