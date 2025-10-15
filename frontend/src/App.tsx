@@ -17,6 +17,7 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTripsLoading, setIsTripsLoading] = useState(true);
   const [isLocationsLoading, setIsLocationsLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'group' | 'individual'>('group');
 
   const loadTrips = () => {
     setIsTripsLoading(true);
@@ -185,12 +186,20 @@ function App() {
           </>
           )}
         <hr />
+
+        <div className='view-toggle'>
+          <span>表示モード</span>
+          <button onClick={() => setViewMode('group')} className={viewMode === 'group' ? 'active' : '' }>グループ</button>
+          <button onClick={() => setViewMode('individual')} className={viewMode === 'individual' ? 'active' : '' }>個別</button>
+        </div>
+
+        <hr />
         <AddTripForm onTripAdd={handleAddTrip} />
         <hr />
         {selectedTripId && <AddLocationForm onLocationAdd={handleAddLocation} />}
       </aside>
       <main className="main-content">
-        <Map locations={locations} onPinClick={handleOpenModal} onPinDelete={handleDeleteLocation} />
+        <Map locations={locations} onPinClick={handleOpenModal} onPinDelete={handleDeleteLocation} viewMode={viewMode} />
         
         {isLocationsLoading ? (
           <div className='loading-overlay'>

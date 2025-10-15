@@ -4,6 +4,8 @@ from datetime import date
 
 class PhotoBase(BaseModel):
     file_path: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class PhotoCreate(PhotoBase):
     pass

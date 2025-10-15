@@ -1,6 +1,8 @@
 export interface Photo {
     id: number;
     file_path: string;
+    latitude: number | null;
+    longitude: number | null;
 }
 
 export interface Location {

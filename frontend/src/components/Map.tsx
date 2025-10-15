@@ -7,19 +7,20 @@ interface MapProps {
     locations: Location[];
     onPinClick: (location: Location) => void;
     onPinDelete: (locationId: number, locationTitle: string) => void;
+    viewMode: 'group' | 'individual';
 }
 
-const Map = ({ locations, onPinClick, onPinDelete }: MapProps) => {
+const Map = ({ locations, onPinClick, onPinDelete, viewMode }: MapProps) => {
     console.log("Map component is rendering with locations:", locations);
 
     const [isMapLoaded, setIsMapLoaded] = useState(false);
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
 
-    const propsRef = useRef({ locations, onPinClick, onPinDelete });
+    const propsRef = useRef({ locations, onPinClick, onPinDelete, viewMode });
 
     useEffect(() => {
-        propsRef.current = { locations, onPinClick, onPinDelete };
+        propsRef.current = { locations, onPinClick, onPinDelete, viewMode };
     });
 
     useEffect(() => {
@@ -114,30 +115,26 @@ const Map = ({ locations, onPinClick, onPinDelete }: MapProps) => {
 
             map.current.on('click', 'unclustered-point', (e) => {
                 if (!map.current || !e.features || e.features.length === 0) return;
-
-                const coordinates = (e.features[0].geometry as any).coordinates.slice();
                 const properties = e.features[0].properties;
 
-                const popupContent = `<div><h4>${properties?.title}</h4><button id="popup-details-btn-${properties?.id}" class="popup-btn">詳細を見る</button><button id="popup-delete-btn-${properties?.id}" class="popup-btn">削除</button></div>`;
-
-                new mapboxgl.Popup()
-                    .setLngLat(coordinates)
-                    .setHTML(popupContent)
-                    .addTo(map.current!);
-
-                document.getElementById(`popup-details-btn-${properties?.id}`)?.addEventListener('click', () => {
-                    const clickedLocationId = properties?.id;
-                    const fullLocationData = propsRef.current.locations.find(loc => loc.id === clickedLocationId);
-                    if (fullLocationData) {
-                        propsRef.current.onPinClick(fullLocationData);
-                    }
-                });
-
-                document.getElementById(`popup-delete-btn-${properties?.id}`)?.addEventListener('click', () => {
-                    if (properties?.id && properties?.title) {
-                        propsRef.current.onPinDelete(properties.id, properties.title);
-                    }
-                });
+                if (propsRef.current.viewMode === 'group') {
+                    const coordinates = (e.features![0].geometry as any).coordinates.slice();
+                    const popupContent = `<div><h4>${properties?.title}</h4><div class="popup-buttons"><button id="popup-details-btn-${properties?.id}" class="popup-btn">詳細</button><button id="popup-delete-btn-${properties?.id}" class="popup-btn popup-delete-btn">削除</button></div></div>`;
+                    new mapboxgl.Popup({ offset: 25 }).setLngLat(coordinates).setHTML(popupContent).addTo(map.current!);
+                    
+                    document.getElementById(`popup-details-btn-${properties?.id}`)?.addEventListener('click', () => {
+                        const fullLocationData = propsRef.current.locations.find(loc => loc.id === properties?.id);
+                        if (fullLocationData) propsRef.current.onPinClick(fullLocationData);
+                    });
+                    document.getElementById(`popup-delete-btn-${properties?.id}`)?.addEventListener('click', () => {
+                        if (properties?.id && properties?.title) {
+                            propsRef.current.onPinDelete(properties.id, properties.title);
+                        }
+                    });
+                } else if (propsRef.current.viewMode === 'individual') {
+                    const fullLocationData = propsRef.current.locations.find(loc => loc.id === properties?.parentLocationId);
+                    if (fullLocationData) propsRef.current.onPinClick(fullLocationData);
+                }
             });
 
             map.current.on('mouseenter', 'clusters', () => { 
@@ -163,14 +160,38 @@ const Map = ({ locations, onPinClick, onPinDelete }: MapProps) => {
     useEffect(() => {
         if (!isMapLoaded || !map.current || !map.current.getSource('locations')) return;
 
-        const features = locations.map(location => ({
-            type: 'Feature' as const,
-            properties: location,
-            geometry: {
-                type: 'Point' as const,
-                coordinates: [location.longitude, location.latitude]
-            }
-        }));
+        let features: any[] = [];
+        const currentLocations = propsRef.current.locations;
+
+        if (viewMode === 'group') {
+            features = currentLocations.map(location => ({
+                type: 'Feature' as const,
+                properties: location,
+                geometry: {
+                    type: 'Point' as const,
+                    coordinates: [location.longitude, location.latitude]
+                }
+            }));
+        } else {
+            currentLocations.forEach(location => {
+                location.photos.forEach(photo => {
+                    if (photo.latitude && photo.longitude) {
+                        features.push({
+                            type: 'Feature' as const,
+                            properties: {
+                                ...photo,
+                                parentLocationId: location.id,
+                                parentLocationTitle: location.title,
+                            },
+                            geometry: {
+                                type: 'Point' as const,
+                                coordinates: [photo.longitude, photo.latitude]
+                            }
+                        });
+                    }
+                });
+            });
+        }
         
         const geojsonData = {
             type: 'FeatureCollection' as const,
@@ -180,7 +201,7 @@ const Map = ({ locations, onPinClick, onPinDelete }: MapProps) => {
         const source = map.current.getSource('locations') as mapboxgl.GeoJSONSource;
         source.setData(geojsonData);
 
-    }, [locations, isMapLoaded]);
+    }, [locations, isMapLoaded, viewMode]);
 
     return <div ref={mapContainer} className="map-container" />;
 };

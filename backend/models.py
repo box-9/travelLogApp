@@ -28,6 +28,8 @@ class Photo(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     file_path = Column(String, unique=True, index=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     location_id = Column(Integer, ForeignKey("locations.id"))
     location = relationship("Location", back_populates="photos")
 

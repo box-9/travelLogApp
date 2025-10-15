@@ -115,4 +115,4 @@ def reset_location_from_photo(photo_id: int, db: Session = Depends(get_db)):
     updated_location = crud.reset_location_from_photo(db=db, photo_id=photo_id)
     if updated_location is None:
         raise HTTPException(status_code=404, detail="Photo not found")
-    return updated_location
+    return 

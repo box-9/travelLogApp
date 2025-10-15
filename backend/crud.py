@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from . import models, schemas
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
@@ -25,7 +25,7 @@ def delete_trip(db: Session, trip_id: int):
     return db_trip
 
 def get_locations_by_trip(db: Session, trip_id: int, skip: int = 0, limit: int = 100):
-    return db.query(models.Location).filter(models.Location.trip_id == trip_id).offset(skip).limit(limit).all()
+    return db.query(models.Location).options(joinedload(models.Location.photos)).filter(models.Location.trip_id == trip_id).offset(skip).limit(limit).all()
 
 def create_trip_location(db: Session, location: schemas.LocationCreate, trip_id: int):
     db_location = models.Location(**location.model_dump(), trip_id=trip_id)
@@ -85,12 +85,18 @@ def create_location_photo(db: Session, location_id: int, file_path: str):
     if not db_location:
         return None
     
+    photo_data = {"location_id": location_id, "file_path": file_path}
+
     geotag = get_geotag_from_image(file_path)
     if geotag:
-        db_location.latitude = geotag["latitude"]
-        db_location.longitude = geotag["longitude"]
+        if db_location.latitude == 0 and db_location.longitude == 0:
+            db_location.latitude = geotag["latitude"]
+            db_location.longitude = geotag["longitude"]
+        
+        photo_data["latitude"] = geotag["latitude"]
+        photo_data["longitude"] = geotag["longitude"]
     
-    db_photo = models.Photo(location_id=location_id, file_path=file_path)
+    db_photo = models.Photo(**photo_data)
     db.add(db_photo)
     db.add(db_location)
     db.commit()
