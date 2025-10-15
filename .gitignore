@@ -1,0 +1,19 @@
+# コメント: OS固有のファイル
+.DS_Store
+Thumbs.db
+
+# コメント: 依存関係ファイル（インストール時に生成される）
+node_modules/
+vendor/
+
+# コメント: ビルド成果物
+dist/
+build/
+
+# コメント: ログファイル
+*.log
+npm-debug.log*
+
+# コメント: 環境変数ファイル（個人情報を含むため）
+.env
+.env.local
