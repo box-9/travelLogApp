@@ -19,7 +19,7 @@ class Location(Base):
     description = Column(String, nullable=True)
     latitude = Column(Float)
     longitude = Column(Float)
-    trip_id = Column(Integer, ForeignKey("trips.id"))
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"))
     trip = relationship("Trip", back_populates="locations")
     photos = relationship("Photo", back_populates="location", cascade="all, delete-orphan")
 
@@ -30,6 +30,6 @@ class Photo(Base):
     file_path = Column(String, unique=True, index=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
-    location_id = Column(Integer, ForeignKey("locations.id"))
+    location_id = Column(Integer, ForeignKey("locations.id", ondelete="CASCADE"))
     location = relationship("Location", back_populates="photos")
 

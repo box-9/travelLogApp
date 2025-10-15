@@ -1,14 +1,21 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from . import models, schemas
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 import os
 
+def _delete_photo_file(photo: models.Photo):
+    if photo and photo.file_path:
+        file_name = os.path.basename(photo.file_path)
+        file_path = os.path.join("static/images/", file_name)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
 def get_trip(db: Session, trip_id: int):
-    return db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+    return db.query(models.Trip).options(selectinload(models.Trip.locations).selectinload(models.Location.photos)).filter(models.Trip.id == trip_id).first()
 
 def get_trips(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Trip).offset(skip).limit(limit).all()
+    return db.query(models.Trip).options(selectinload(models.Trip.locations).selectinload(models.Location.photos)).order_by(models.Trip.start_date.desc()).offset(skip).limit(limit).all()
 
 def create_trip(db: Session, trip: schemas.TripCreate):
     db_trip = models.Trip(**trip.model_dump())
@@ -20,6 +27,9 @@ def create_trip(db: Session, trip: schemas.TripCreate):
 def delete_trip(db: Session, trip_id: int):
     db_trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
     if db_trip:
+        for location in db_trip.locations:
+            for photo in location.photos:
+                _delete_photo_file(photo)
         db.delete(db_trip)
         db.commit()
     return db_trip
@@ -37,6 +47,8 @@ def create_trip_location(db: Session, location: schemas.LocationCreate, trip_id:
 def delete_location(db: Session, location_id: int):
     db_location = db.query(models.Location).filter(models.Location.id == location_id).first()
     if db_location:
+        for photo in db_location.photos:
+            _delete_photo_file(photo)
         db.delete(db_location)
         db.commit()
     return db_location
@@ -146,9 +158,7 @@ def update_location(db: Session, location_id: int, location: schemas.LocationUpd
 def delete_photo(db: Session, photo_id: int):
     db_photo = db.query(models.Photo).filter(models.Photo.id == photo_id).first()
     if db_photo:
-        if db_photo.file_path and os.path.exists(db_photo.file_path):
-            os.remove(db_photo.file_path)
-        
+        _delete_photo_file(db_photo)
         db.delete(db_photo)
         db.commit()
     return db_photo
