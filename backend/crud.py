@@ -105,9 +105,8 @@ def create_location_photo(db: Session, location_id: int, file_path: str):
 
     geotag = get_geotag_from_image(file_path)
     if geotag:
-        if db_location.latitude == 0 and db_location.longitude == 0:
-            db_location.latitude = geotag["latitude"]
-            db_location.longitude = geotag["longitude"]
+        db_location.latitude = geotag["latitude"]
+        db_location.longitude = geotag["longitude"]
         
         photo_data["latitude"] = geotag["latitude"]
         photo_data["longitude"] = geotag["longitude"]

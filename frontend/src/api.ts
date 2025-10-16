@@ -46,29 +46,22 @@ export const fetchLocations = async (tripId: number): Promise<Location[]> => {
   return response.json();
 };
 
-export const addLocation = async (tripId: number, formData: { title: string, description: string, file: File }): Promise<Response> => {
-  const locationData = {
-    title: formData.title,
-    description: formData.description,
-    latitude: 0,
-    longitude: 0,
-  };
-  const locResponse = await fetch(`${API_URL}/trips/${tripId}/locations/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(locationData),
-  });
-  if (!locResponse.ok) throw new Error('Failed to create location');
-  const newLocation: Location = await locResponse.json();
+export const addLocation = async (tripId: number, formData: { title: string, description: string, latitude: number, longitude: number, file: File }): Promise<Location> => {
+  const apiFormData = new FormData();
+    apiFormData.append('title', formData.title);
+    apiFormData.append('description', formData.description);
+    apiFormData.append('latitude', formData.latitude.toString());
+    apiFormData.append('longitude', formData.longitude.toString());
+    apiFormData.append('file', formData.file);
 
-  const photoFormData = new FormData();
-  photoFormData.append("file", formData.file);
-  const photoResponse = await fetch(`${API_URL}/locations/${newLocation.id}/photos/`, {
-    method: 'POST',
-    body: photoFormData,
-  });
-  if (!photoResponse.ok) throw new Error('Failed to upload photo');
-  return photoResponse;
+    const response = await fetch(`${API_URL}/trips/${tripId}/locations/`, {
+        method: 'POST',
+        body: apiFormData,
+    });
+    if (!response.ok) {
+        throw new Error('Failed to add location and photo');
+    }
+    return response.json();
 };
 
 export const updateLocation = async (locationId: number, updateData: Partial<Location>): Promise<Location> => {

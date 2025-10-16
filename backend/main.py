@@ -1,14 +1,21 @@
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
+from dotenv import load_dotenv
+import os
+
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path=dotenv_path)
+
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import shutil
-import os
 import uuid
 
+from .config import settings
 from . import models, schemas, crud
 from .database import engine, SessionLocal
-from .config import settings
+
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -46,12 +53,31 @@ def read_trips(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     trips = crud.get_trips(db, skip=skip, limit=limit)
     return trips
 
-@app.post("/trips/{trip_id}/locations/", response_model=schemas.Location)
-def create_location_for_trip(trip_id: int, location: schemas.LocationCreate, db: Session = Depends(get_db)):
+@app.post("/trips/{trip_id}/locations/", response_class=schemas.Location)
+def create_location_and_photo_for_trip(trip_id: int, title: str = Form(...), description: str = Form(None), latitude: float = Form(...), longitude: float = Form(...), file: UploadFile = Form(...), db: Session = Depends(get_db)):
     db_trip = crud.get_trip(db, trip_id=trip_id)
     if db_trip is None:
-        raise HTTPException(status_code=404, detail= "Trip not found")
-    return crud.create_trip_location(db=db, location=location, trip_id=trip_id)
+        raise HTTPException(status_code=404, detail="Trip not found")
+    
+    location_data = schemas.LocationCreate(title=title, description=description, latitude=latitude, longitude=longitude)
+    db_location = crud.create_trip_location(db=db, location=location_data, trip_id=trip_id)
+    if db_location is None:
+        raise HTTPException(status_code=500, detail="Failed to create location")
+    
+    ext = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    db_photo = crud.create_location_photo(db=db, location_id=db_location.id, file_path=file_path)
+    if db_photo is None:
+        crud.delete_location(db=db, location_id=db_location.id)
+        raise HTTPException(status_code=500, detail="Failed to create photo and associate with location")
+    
+    db.refresh(db_location)
+    return db_location
 
 @app.get("/trips/{trip_id}/locations/", response_model=list[schemas.Location])
 def read_locations_for_trip(trip_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -82,20 +108,6 @@ def delete_location(location_id: int, db: Session = Depends(get_db)):
     if db_location is None:
         raise HTTPException(status_code=404, detail="Location not found")
     return db_location
-
-@app.post("/locations/{location_id}/photos/", response_model=schemas.Photo)
-def upload_photo_for_location(location_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    ext = os.path.splitext(file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{ext}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    db_photo = crud.create_location_photo(db=db, location_id=location_id, file_path=file_path)
-    if db_photo is None:
-        raise HTTPException(status_code=404, detail="Location not found")
-    return db_photo
 
 @app.put("/locations/{location_id}", response_model=schemas.Location)
 def update_location(location_id: int, location: schemas.LocationUpdate, db: Session = Depends(get_db)):

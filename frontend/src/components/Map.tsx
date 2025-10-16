@@ -8,19 +8,22 @@ interface MapProps {
     onPinClick: (location: Location) => void;
     onPinDelete: (locationId: number, locationTitle: string) => void;
     viewMode: 'group' | 'individual';
+    onMapClick: (coords: { lat: number, lng: number }) => void;
+    isPlacingPin: boolean;
+    center: [number, number];
 }
 
-const Map = ({ locations, onPinClick, onPinDelete, viewMode }: MapProps) => {
+const Map = ({ locations, onPinClick, onPinDelete, viewMode, onMapClick, isPlacingPin, center }: MapProps) => {
     console.log("Map component is rendering with locations:", locations);
 
     const [isMapLoaded, setIsMapLoaded] = useState(false);
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
 
-    const propsRef = useRef({ locations, onPinClick, onPinDelete, viewMode });
+    const propsRef = useRef({ locations, onPinClick, onPinDelete, viewMode, onMapClick, isPlacingPin});
 
     useEffect(() => {
-        propsRef.current = { locations, onPinClick, onPinDelete, viewMode };
+        propsRef.current = { locations, onPinClick, onPinDelete, viewMode, onMapClick, isPlacingPin };
     });
 
     useEffect(() => {
@@ -32,7 +35,7 @@ const Map = ({ locations, onPinClick, onPinDelete, viewMode }: MapProps) => {
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
             style: 'mapbox://styles/mapbox/streets-v12',
-            center: [139.7671, 35.6812],
+            center: center,
             zoom: 5,
         });
 
@@ -99,6 +102,16 @@ const Map = ({ locations, onPinClick, onPinDelete, viewMode }: MapProps) => {
                 }
             });
 
+            map.current.on('click', (e) => {
+                const features = map.current?.queryRenderedFeatures(e.point,  {
+                    layers: ['clusters', 'unclustered-point']
+                });
+
+                if (propsRef.current.isPlacingPin && (!features || features.length === 0)) {
+                    propsRef.current.onMapClick(e.lngLat);
+                }
+            });
+
             map.current.on('click', 'clusters', (e) => {
                 const features = map.current?.queryRenderedFeatures(e.point, { layers: ['clusters'] });
                 if (!features || features.length === 0) return;
@@ -155,7 +168,15 @@ const Map = ({ locations, onPinClick, onPinDelete, viewMode }: MapProps) => {
 
             setIsMapLoaded(true);
         });
-    }, []);
+    }, [center]);
+
+    useEffect(() => {
+        if (!map.current) return;
+        if (isPlacingPin) {
+            map.current.flyTo({ center: center, zoom: 12 });
+        }
+        map.current.getCanvas().style.cursor = isPlacingPin ? 'crosshair': '';  
+    }, [isPlacingPin, center]);
 
     useEffect(() => {
         if (!isMapLoaded || !map.current || !map.current.getSource('locations')) return;
@@ -203,7 +224,7 @@ const Map = ({ locations, onPinClick, onPinDelete, viewMode }: MapProps) => {
 
     }, [locations, isMapLoaded, viewMode]);
 
-    return <div ref={mapContainer} className="map-container" />;
+    return <div ref={mapContainer} className={`map-container ${isPlacingPin ? 'placing-pin' : ''}`} />;
 };
 
 export default Map;

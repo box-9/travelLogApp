@@ -8,6 +8,13 @@ import AddLocationForm from './components/AddLocationForm';
 import { Toaster, toast } from 'react-hot-toast';
 import type { Location, Trip } from './types';
 import * as api from './api';
+import EXIF from 'exif-js';
+
+interface LocationFormData {
+  title: string;
+  description: string;
+  file: File;
+}
 
 function App() {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -18,6 +25,9 @@ function App() {
   const [isTripsLoading, setIsTripsLoading] = useState(true);
   const [isLocationsLoading, setIsLocationsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'group' | 'individual'>('group');
+  const [isPlacingPin, setIsPlacingPin] = useState(false);
+  const [pendingLocationData, setPendingLocationData] = useState<LocationFormData | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([35.6895, 139.6917]);
 
   const loadTrips = () => {
     setIsTripsLoading(true);
@@ -76,13 +86,76 @@ function App() {
     ).then(() => loadTrips());
   };
 
-  const handleAddLocation = (formData: { title: string, description: string, file: File }) => {
+  const handleAddLocation = (formData: LocationFormData) => {
     if (selectedTripId === null) return;
-    toast.promise(api.addLocation(selectedTripId, formData), {
-      loading: '旅行を追加中...',
+
+    const getGeoData = (file: File): Promise<{ latitude: number, longitude: number } | null> => {
+      return new Promise((resolve) => {
+        EXIF.getData(file as any, function(this: any) {
+          const lat = EXIF.getTag(this, "GPSLatitude");
+          const lon = EXIF.getTag(this, "GPSLongitude");
+
+          if (lat && lon) {
+            const latRef = EXIF.getTag(this, "GPSLatitudeRef") || "N";
+            const lonRef = EXIF.getTag(this, "GPSLongitudeRef") || "E";
+
+            const latitude = (lat[0] + lat[1] / 60 + lat[2] / 3600) * (latRef === "N" ? 1 : -1);
+            const longitude = (lon[0] + lon[1] / 60 + lon[2] / 3600) * (lonRef === "N" ? 1 : -1);
+
+            resolve({ latitude, longitude });
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    };
+
+    getGeoData(formData.file).then(geoData => {
+      if (geoData) {
+        const fullFormData = { ...formData, ...geoData };
+        toast.promise(api.addLocation(selectedTripId, fullFormData), {
+          loading: '旅行を追加中...',
+          success: <b>追加しました！</b>,
+          error: <b>追加に失敗しました</b>,
+        }).then(() => loadLocations(selectedTripId));
+      } else {
+        setIsPlacingPin(true);
+        setPendingLocationData(formData);
+
+        if (locations.length > 0) {
+          const lastLocation = locations[locations.length - 1];
+          setMapCenter([lastLocation.latitude, lastLocation.longitude]);
+        } else {
+          setMapCenter([35.6895, 139.6917]);
+        }
+
+        toast('写真に位置情報がありませんでした。\n地図上をクリックして場所を指定してください。', {
+          icon: '📍',
+          duration: 5000,
+        });
+      }
+    });
+  };
+
+  const handleMapClick = ({ lat, lng }: { lat: number, lng: number }) => {
+    if (isPlacingPin && pendingLocationData && selectedTripId) {
+      const fullFormData = {
+        ...pendingLocationData,
+        latitude: lat,
+        longitude: lng,
+      };
+
+      toast.promise(api.addLocation(selectedTripId, fullFormData), {
+        loading: '場所を追加中...',
         success: <b>追加しました！</b>,
         error: <b>追加に失敗しました</b>,
-    }).then(() => loadLocations(selectedTripId));
+      }).then(() => {
+        loadLocations(selectedTripId);
+      }).finally(() => {
+        setIsPlacingPin(false);
+        setPendingLocationData(null);
+      });
+    }
   };
 
   const handleUpdateTrip = (tripId: number, newName: string) => {
@@ -199,7 +272,7 @@ function App() {
         {selectedTripId && <AddLocationForm onLocationAdd={handleAddLocation} />}
       </aside>
       <main className="main-content">
-        <Map locations={locations} onPinClick={handleOpenModal} onPinDelete={handleDeleteLocation} viewMode={viewMode} />
+        <Map locations={locations} onPinClick={handleOpenModal} onPinDelete={handleDeleteLocation} viewMode={viewMode} onMapClick={handleMapClick} isPlacingPin={isPlacingPin} center={mapCenter}/>
         
         {isLocationsLoading ? (
           <div className='loading-overlay'>
@@ -221,6 +294,11 @@ function App() {
               )
             }
           </>
+        )}
+        {isPlacingPin && (
+          <div className='placing-pin-overlay'>
+            <h2>📍 地図をクリックして場所を決定</h2>
+          </div>
         )}
       </main>
     </div>
