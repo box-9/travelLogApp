@@ -8,7 +8,7 @@ import AddLocationForm from './components/AddLocationForm';
 import { Toaster, toast } from 'react-hot-toast';
 import type { Location, Trip } from './types';
 import * as api from './api';
-import EXIF from 'exif-js';
+import exifr from 'exifr';
 
 interface LocationFormData {
   title: string;
@@ -18,41 +18,26 @@ interface LocationFormData {
 
 function App() {
   const [trips, setTrips] = useState<Trip[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTripsLoading, setIsTripsLoading] = useState(true);
-  const [isLocationsLoading, setIsLocationsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'group' | 'individual'>('group');
   const [isPlacingPin, setIsPlacingPin] = useState(false);
   const [pendingLocationData, setPendingLocationData] = useState<LocationFormData | null>(null);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([35.6895, 139.6917]);
+  const [center, setCenter] = useState<[number, number]>([139.6917, 35.6895]);
 
-  const loadTrips = () => {
+  const loadTrips = async () => {
     setIsTripsLoading(true);
-    api.fetchTrips()
-      .then(data => {
-        setTrips(data);
-        setIsTripsLoading(false);
-      })
-      .catch(error => {
-        console.error("Error fetching trips:", error);
-        setIsTripsLoading(false);
-      });
-  };
-
-  const loadLocations = (tripId: number) => {
-    setIsLocationsLoading(true);
-    api.fetchLocations(tripId)
-      .then(data => {
-        setLocations(data);
-        setIsLocationsLoading(false);
-      })
-      .catch(error => {
-        console.error(`Error fetching locations for trip ${tripId}:`, error);
-        setIsLocationsLoading(false);
-      });
+    try {
+      const data = await api.fetchTrips();
+      setTrips(data);
+    } catch (error) {
+      console.error("Error fetching trips:", error);
+      toast.error("旅行データの読み込みに失敗しました。");
+    } finally {
+      setIsTripsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -60,21 +45,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (selectedTripId !== null) {
-      loadLocations(selectedTripId);
-    } else {
-      setLocations([]);
-    }
-  }, [selectedTripId]);
+    loadTrips();
+  }, []);
 
   useEffect(() => {
     if (selectedLocation) {
-      const updatedLocation = locations.find(loc => loc.id === selectedLocation.id);
-      if (updatedLocation) {
-        setSelectedLocation(updatedLocation);
-      }
+      const allLocations = trips.flatMap(trip => trip.locations);
+      const updatedLocation = allLocations.find(loc => loc.id === selectedLocation.id);
+      setSelectedLocation(updatedLocation || null);
     }
-  }, [locations]);
+  }, [trips]);
 
   const handleAddTrip = (name: string) => {
     toast.promise(
@@ -86,58 +66,49 @@ function App() {
     ).then(() => loadTrips());
   };
 
-  const handleAddLocation = (formData: LocationFormData) => {
+  const handleAddLocation = async (formData: LocationFormData) => {
     if (selectedTripId === null) return;
-
-    const getGeoData = (file: File): Promise<{ latitude: number, longitude: number } | null> => {
-      return new Promise((resolve) => {
-        EXIF.getData(file as any, function(this: any) {
-          const lat = EXIF.getTag(this, "GPSLatitude");
-          const lon = EXIF.getTag(this, "GPSLongitude");
-
-          if (lat && lon) {
-            const latRef = EXIF.getTag(this, "GPSLatitudeRef") || "N";
-            const lonRef = EXIF.getTag(this, "GPSLongitudeRef") || "E";
-
-            const latitude = (lat[0] + lat[1] / 60 + lat[2] / 3600) * (latRef === "N" ? 1 : -1);
-            const longitude = (lon[0] + lon[1] / 60 + lon[2] / 3600) * (lonRef === "N" ? 1 : -1);
-
-            resolve({ latitude, longitude });
-          } else {
-            resolve(null);
-          }
-        });
-      });
-    };
-
-    getGeoData(formData.file).then(geoData => {
-      if (geoData) {
-        const fullFormData = { ...formData, ...geoData };
-        toast.promise(api.addLocation(selectedTripId, fullFormData), {
-          loading: '旅行を追加中...',
+  
+    try {
+      const exifData = await exifr.parse(formData.file);
+      if (exifData && exifData.latitude && exifData.longitude) {
+        const fullFormData = {
+          ...formData,
+          latitude: exifData.latitude,
+          longitude: exifData.longitude,
+        };
+        await toast.promise(api.addLocation(selectedTripId, fullFormData), {
+          loading: '場所を追加中...',
           success: <b>追加しました！</b>,
           error: <b>追加に失敗しました</b>,
-        }).then(() => loadLocations(selectedTripId));
+        });
+        await loadTrips();
       } else {
         setIsPlacingPin(true);
         setPendingLocationData(formData);
-
-        if (locations.length > 0) {
+        
+        const selectedTrip = trips.find(trip => trip.id === selectedTripId);
+        const locations = selectedTrip?.locations;
+        
+        if (locations && locations.length > 0) {
           const lastLocation = locations[locations.length - 1];
-          setMapCenter([lastLocation.latitude, lastLocation.longitude]);
+          setCenter([lastLocation.longitude, lastLocation.latitude]);
         } else {
-          setMapCenter([35.6895, 139.6917]);
+          setCenter([139.6917, 35.6895]);
         }
-
+  
         toast('写真に位置情報がありませんでした。\n地図上をクリックして場所を指定してください。', {
           icon: '📍',
           duration: 5000,
         });
       }
-    });
+    } catch (error) {
+        console.error("Failed to process location:", error)
+        toast.error('写真の処理中にエラーが発生しました。');
+    }
   };
 
-  const handleMapClick = ({ lat, lng }: { lat: number, lng: number }) => {
+  const handleMapClick = async ({ lat, lng }: { lat: number, lng: number }) => {
     if (isPlacingPin && pendingLocationData && selectedTripId) {
       const fullFormData = {
         ...pendingLocationData,
@@ -145,16 +116,16 @@ function App() {
         longitude: lng,
       };
 
-      toast.promise(api.addLocation(selectedTripId, fullFormData), {
+      await toast.promise(api.addLocation(selectedTripId, fullFormData), {
         loading: '場所を追加中...',
         success: <b>追加しました！</b>,
         error: <b>追加に失敗しました</b>,
-      }).then(() => {
-        loadLocations(selectedTripId);
-      }).finally(() => {
-        setIsPlacingPin(false);
-        setPendingLocationData(null);
       });
+
+      await loadTrips();
+      setIsPlacingPin(false);
+      setPendingLocationData(null);
+      setCenter([lng, lat]);
     }
   };
 
@@ -172,7 +143,7 @@ function App() {
       loading: '保存中...',
       success: <b>保存しました！</b>,
       error: <b>保存に失敗しました</b>,
-    }).then(() => loadLocations(selectedTripId));
+    }).then(() => loadTrips());
   };
 
   const handleAddPhotoToLocation = (locationId: number, file: File) => {
@@ -181,7 +152,7 @@ function App() {
       loading: '写真を追加中...',
       success: <b>写真を追加しました！</b>,
       error: <b>追加に失敗しました</b>,
-    }).then(() => loadLocations(selectedTripId));
+    }).then(() => loadTrips());
   };
 
   const handlePositionReset = (photoId: number) => {
@@ -191,7 +162,7 @@ function App() {
       success: <b>位置をリセットしました!</b>,
       error: <b>リセットに失敗しました</b>,
     }).then(() => {
-      loadLocations(selectedTripId);
+      loadTrips();
       handleCloseModal();
     })
   }
@@ -218,7 +189,7 @@ function App() {
         loading: '削除中...',
         success: <b>削除しました!</b>,
         error: <b>削除に失敗しました</b>,
-      }).then(() => loadLocations(selectedTripId));
+      }).then(() => loadTrips());
     }
   };
 
@@ -230,7 +201,7 @@ function App() {
         success: <b>削除しました！</b>,
         error: <b>削除に失敗しました。</b>,
       }).then(() => {
-        loadLocations(selectedTripId!);
+        loadTrips();
         handleCloseModal();
       });
     }
@@ -238,6 +209,8 @@ function App() {
 
   const handleOpenModal = (location: Location) => { setSelectedLocation(location); setIsModalOpen(true); };
   const handleCloseModal = () => { setIsModalOpen(false); setSelectedLocation(null); };
+
+  const allLocations = trips.flatMap(trip => trip.locations);
 
   return (
     <div className="container">
@@ -272,21 +245,29 @@ function App() {
         {selectedTripId && <AddLocationForm onLocationAdd={handleAddLocation} />}
       </aside>
       <main className="main-content">
-        <Map locations={locations} onPinClick={handleOpenModal} onPinDelete={handleDeleteLocation} viewMode={viewMode} onMapClick={handleMapClick} isPlacingPin={isPlacingPin} center={mapCenter}/>
+        <Map 
+          locations={allLocations}
+          onPinClick={handleOpenModal} 
+          onPinDelete={handleDeleteLocation} 
+          viewMode={viewMode} 
+          onMapClick={handleMapClick} 
+          isPlacingPin={isPlacingPin} 
+          center={center}
+        />
         
-        {isLocationsLoading ? (
+        {isTripsLoading ? (
           <div className='loading-overlay'>
             <p>場所を読み込み中...</p>
           </div>
         ) : (
           <>
-            {!isLocationsLoading && !selectedTripId && (
+            {!selectedTripId && (
               <div className='empty-state-overlay'>
                 <h2>旅行を選択してください</h2>
                 <p>サイドバーから旅行を選択すると、地図上にピンが表示されます</p>
               </div>
             )}
-            {!isLocationsLoading && selectedTripId && locations.length === 0 && (
+            {selectedTripId && allLocations.length === 0 && (
                 <div className='empty-state-overlay'>
                   <p>この旅行にはまだ場所が登録されていません。</p>
                   <p>写真を追加して、最初の記録を作りましょう！</p>

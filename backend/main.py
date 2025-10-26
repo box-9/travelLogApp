@@ -53,7 +53,7 @@ def read_trips(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     trips = crud.get_trips(db, skip=skip, limit=limit)
     return trips
 
-@app.post("/trips/{trip_id}/locations/", response_class=schemas.Location)
+@app.post("/trips/{trip_id}/locations/", response_model=schemas.Location)
 def create_location_and_photo_for_trip(trip_id: int, title: str = Form(...), description: str = Form(None), latitude: float = Form(...), longitude: float = Form(...), file: UploadFile = Form(...), db: Session = Depends(get_db)):
     db_trip = crud.get_trip(db, trip_id=trip_id)
     if db_trip is None:
@@ -128,4 +128,4 @@ def reset_location_from_photo(photo_id: int, db: Session = Depends(get_db)):
     updated_location = crud.reset_location_from_photo(db=db, photo_id=photo_id)
     if updated_location is None:
         raise HTTPException(status_code=404, detail="Photo not found")
-    return 
+    return update_location
