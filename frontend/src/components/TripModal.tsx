@@ -132,6 +132,14 @@ const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhoto
                                     alt="Travel"
                                     style={{ width: '150px', height: '150px', objectFit: 'cover', marginRight: '10px' }}
                                 />
+                                {photo.tags && photo.tags.length > 0 && (
+                                    <div className="photo-tags">
+                                        {photo.tags.map(tag => (
+                                            <span key={tag} className="photo-tag">#{tag}</span>
+                                        ))}
+                                    </div>
+                                )}
+
                                 <button
                                     onClick={() => onPhotoDelete(photo.id)}
                                     className='photo-delete-btn'

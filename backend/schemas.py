@@ -6,6 +6,7 @@ class PhotoBase(BaseModel):
     file_path: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    tags: Optional[List[str]] = None
 
 class PhotoCreate(PhotoBase):
     pass
@@ -13,6 +14,7 @@ class PhotoCreate(PhotoBase):
 class Photo(PhotoCreate):
     id: int
     location_id: int
+    tags: List[str] = []
 
     class Config:
         from_attributes = True

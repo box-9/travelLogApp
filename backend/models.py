@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, Date, JSON
 from .database import Base
 from sqlalchemy.orm import relationship
 
@@ -30,6 +30,7 @@ class Photo(Base):
     file_path = Column(String, unique=True, index=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
+    tags = Column(JSON, nullable=True)
     location_id = Column(Integer, ForeignKey("locations.id", ondelete="CASCADE"))
     location = relationship("Location", back_populates="photos")
 

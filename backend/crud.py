@@ -3,8 +3,17 @@ from . import models, schemas
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 import os
+from transformers import pipeline
+from typing import List
 
 from .config import settings
+
+try:
+    image_classifier = pipeline("image-classification", model="google/vit-base-patch16-224")
+    print("Hugging Face image classification model loaded successfully.")
+except Exception as e:
+    print(f"Error loading Hugging Face model: {e}")
+    image_classifier = None
 
 IMAGEDIR = settings.image_dir
 
@@ -14,6 +23,25 @@ def _delete_photo_file(photo: models.Photo):
         file_path = os.path.join(IMAGEDIR, file_name)
         if os.path.exists(file_path):
             os.remove(file_path)
+
+def _get_image_labels_hf(image_path: str) -> List[str]:
+    if image_classifier is None:
+        print("Image classifier model is not loaded. Skipping tagging.")
+        return []
+        
+    try:
+        image = Image.open(image_path)
+
+        results = image_classifier(image)
+        
+        tags = [result['label'] for result in results if result['score'] > 0.9][:5]
+        
+        print(f"Image tags generated: {tags}")
+        return tags
+
+    except Exception as e:
+        print(f"Error getting image labels from Hugging Face: {e}")
+        return []
 
 def get_trip(db: Session, trip_id: int):
     return db.query(models.Trip).options(selectinload(models.Trip.locations).selectinload(models.Location.photos)).filter(models.Trip.id == trip_id).first()
@@ -102,6 +130,8 @@ def create_location_photo(db: Session, location_id: int, file_path: str):
         return None
     
     photo_data = {"location_id": location_id, "file_path": file_path}
+    tags = _get_image_labels_hf(file_path)
+    photo_data["tags"] = tags
 
     geotag = get_geotag_from_image(file_path)
     if geotag:
@@ -157,6 +187,27 @@ def update_location(db: Session, location_id: int, location: schemas.LocationUpd
         db.commit()
         db.refresh(db_location)
     return db_location
+
+def create_photo_for_location(db: Session, location_id: int, file_path: str):
+    db_location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if not db_location:
+        return None
+    
+    photo_data = {"location_id": location_id, "file_path": file_path}
+
+    tags = _get_image_labels_hf(file_path)
+    photo_data["tags"] = tags
+
+    geotag = get_geotag_from_image(file_path)
+    if geotag:
+        photo_data["latitude"] = geotag["latitude"]
+        photo_data["longitude"] = geotag["longitude"]
+    
+    db_photo = models.Photo(**photo_data)
+    db.add(db_photo)
+    db.commit()
+    db.refresh(db_photo)
+    return db_photo
 
 def delete_photo(db: Session, photo_id: int):
     db_photo = db.query(models.Photo).filter(models.Photo.id == photo_id).first()

@@ -3,6 +3,7 @@ export interface Photo {
     file_path: string;
     latitude: number | null;
     longitude: number | null;
+    tags: string[];
 }
 
 export interface Location {

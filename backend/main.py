@@ -123,9 +123,28 @@ def delete_photo(photo_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Photo not found")
     return db_photo
 
+@app.post("/locations/{location_id}/photos/", response_model=schemas.Photo)
+def create_photo_for_location_endpoint(location_id: int, file: UploadFile = Form(...), db: Session = Depends(get_db)):
+    db_location = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if db_location is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    ext = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    db_photo = crud.create_photo_for_location(db=db, location_id=location_id, file_path=file_path)
+    if db_photo is None:
+        raise HTTPException(status_code=500, detail="Failed to create photo and associate with location")
+
+    return db_photo
+
 @app.post("/photos/{photo_id}/reset-location", response_model=schemas.Location)
 def reset_location_from_photo(photo_id: int, db: Session = Depends(get_db)):
     updated_location = crud.reset_location_from_photo(db=db, photo_id=photo_id)
     if updated_location is None:
         raise HTTPException(status_code=404, detail="Photo not found")
-    return update_location
+    return updated_location
