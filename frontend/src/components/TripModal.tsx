@@ -127,15 +127,37 @@ const TripModal = ({ isOpen, onRequestClose, location, onLocationUpdate, onPhoto
                         {location.photos && location.photos.map(photo => (
                             <div key={photo.id} className='photo-container'>
                                 <img
-                                    key={photo.id}
                                     src={`${API_URL}/${photo.file_path}`}
                                     alt="Travel"
                                     style={{ width: '150px', height: '150px', objectFit: 'cover', marginRight: '10px' }}
                                 />
                                 {photo.tags && photo.tags.length > 0 && (
-                                    <div className="photo-tags">
-                                        {photo.tags.map(tag => (
-                                            <span key={tag} className="photo-tag">#{tag}</span>
+                                    <div 
+                                        className="photo-tags"
+                                        style={{
+                                            position: 'absolute',
+                                            bottom: '8px',
+                                            left: '8px',
+                                            display: 'flex',
+                                            flexWrap: 'wrap',
+                                            gap: '4px',
+                                            maxWidth: 'calc(100% - 16px)'
+                                        }}
+                                    >
+                                        {photo.tags.map((tag: string, index: number) => (
+                                            <span 
+                                                key={index} 
+                                                className="photo-tag"
+                                                style={{
+                                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                                    color: 'white',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '0.75rem'
+                                                }}
+                                            >
+                                                #{tag}
+                                            </span>
                                         ))}
                                     </div>
                                 )}
